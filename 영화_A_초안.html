@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>영화 티어리스트</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Apple SD Gothic Neo", "Malgun Gothic", Arial, sans-serif;
+      background: #f5f6fa;
+      color: #222;
+    }
+
+    header {
+      background: linear-gradient(135deg, #222831, #393e46);
+      color: white;
+      padding: 28px 20px;
+      text-align: center;
+    }
+
+    header h1 {
+      margin: 0 0 8px;
+      font-size: 32px;
+    }
+
+    header p {
+      margin: 0;
+      color: #dcdcdc;
+      font-size: 15px;
+    }
+
+    main {
+      max-width: 1100px;
+      margin: 24px auto;
+      padding: 0 16px 40px;
+    }
+
+    .notice {
+      background: #fff8d6;
+      border: 1px solid #f1d36b;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-bottom: 18px;
+      line-height: 1.5;
+      font-size: 14px;
+    }
+
+    .section-title {
+      margin: 24px 0 12px;
+      font-size: 22px;
+    }
+
+    .waiting-area,
+    .tier-list {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .waiting-box {
+      background: white;
+      border: 2px dashed #9aa4b2;
+      border-radius: 12px;
+      padding: 16px;
+      min-height: 110px;
+    }
+
+    .movie-container {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      min-height: 48px;
+      align-items: flex-start;
+    }
+
+    .tier-row {
+      display: grid;
+      grid-template-columns: 150px 1fr;
+      background: white;
+      border-radius: 12px;
+      overflow: hidden;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+      min-height: 82px;
+    }
+
+    .tier-label {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 12px;
+      font-size: 24px;
+      font-weight: bold;
+      background: #ffd369;
+      border-right: 1px solid #eee;
+      text-align: center;
+      word-break: keep-all;
+    }
+
+    .tier-row[data-tier="5"] .tier-label { background: #ffb3ba; }
+    .tier-row[data-tier="4"] .tier-label { background: #ffdfba; }
+    .tier-row[data-tier="3"] .tier-label { background: #ffffba; }
+    .tier-row[data-tier="2"] .tier-label { background: #baffc9; }
+    .tier-row[data-tier="1"] .tier-label { background: #bae1ff; }
+
+    .drop-zone {
+      padding: 16px;
+      min-height: 82px;
+      transition: background 0.15s ease, outline 0.15s ease;
+    }
+
+    .drop-zone.drag-over {
+      background: #eef6ff;
+      outline: 3px dashed #4b8fe2;
+      outline-offset: -8px;
+    }
+
+    .movie-card {
+      border: none;
+      background: #2f3640;
+      color: white;
+      padding: 11px 14px;
+      border-radius: 10px;
+      font-size: 15px;
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 2px 6px rgba(0, 0, 0, 0.18);
+      transition: transform 0.12s ease, background 0.12s ease, box-shadow 0.12s ease;
+    }
+
+    .movie-card:hover {
+      background: #414b57;
+      transform: translateY(-2px);
+      box-shadow: 0 4px 10px rgba(0, 0, 0, 0.22);
+    }
+
+    .movie-card:active {
+      cursor: grabbing;
+    }
+
+    .movie-card.has-comment::after {
+      content: " ✎";
+      color: #ffd369;
+      font-weight: bold;
+    }
+
+    .empty-text {
+      color: #8a8a8a;
+      font-size: 14px;
+      padding: 8px 0;
+    }
+
+    .modal-backdrop {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0, 0, 0, 0.55);
+      padding: 20px;
+      z-index: 100;
+    }
+
+    .modal-backdrop.show {
+      display: flex;
+    }
+
+    .modal {
+      width: min(520px, 100%);
+      background: white;
+      border-radius: 14px;
+      padding: 22px;
+      box-shadow: 0 10px 35px rgba(0, 0, 0, 0.3);
+    }
+
+    .modal h2 {
+      margin: 0 0 12px;
+      font-size: 22px;
+    }
+
+    .modal p {
+      margin: 0 0 10px;
+      color: #555;
+      font-size: 14px;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 150px;
+      resize: vertical;
+      border: 1px solid #ccd1d9;
+      border-radius: 10px;
+      padding: 12px;
+      font-family: inherit;
+      font-size: 15px;
+      line-height: 1.5;
+    }
+
+    .modal-actions {
+      display: flex;
+      justify-content: flex-end;
+      gap: 10px;
+      margin-top: 14px;
+    }
+
+    .btn {
+      border: none;
+      border-radius: 9px;
+      padding: 10px 15px;
+      font-size: 14px;
+      cursor: pointer;
+    }
+
+    .btn-save {
+      background: #2563eb;
+      color: white;
+    }
+
+    .btn-close {
+      background: #e5e7eb;
+      color: #222;
+    }
+
+    .btn:hover {
+      filter: brightness(0.96);
+    }
+
+    @media (max-width: 700px) {
+      .tier-row {
+        grid-template-columns: 1fr;
+      }
+
+      .tier-label {
+        border-right: none;
+        border-bottom: 1px solid #eee;
+      }
+
+      header h1 {
+        font-size: 26px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <h1>🎬 나만의 영화 티어리스트</h1>
+    <p>영화를 별 1개부터 별 5개까지 원하는 티어로 드래그해 분류해 보세요.</p>
+  </header>
+
+  <main>
+    <div class="notice">
+      <strong>사용 방법</strong><br />
+      영화 카드를 별점 티어로 드래그하면 자동 저장됩니다.
+      영화 카드를 클릭하면 개인 코멘트를 작성하거나 수정할 수 있습니다.
+      새로고침해도 분류와 코멘트는 브라우저에 유지됩니다.
+    </div>
+
+    <h2 class="section-title">대기 구역</h2>
+    <section class="waiting-box" aria-label="대기 구역">
+      <div id="waitingZone" class="movie-container"></div>
+    </section>
+
+    <h2 class="section-title">티어 구역</h2>
+    <section class="tier-list" aria-label="티어 구역">
+      <div class="tier-row" data-tier="5">
+        <div class="tier-label">⭐⭐⭐⭐⭐</div>
+        <div class="drop-zone movie-container" data-tier="5"></div>
+      </div>
+      <div class="tier-row" data-tier="4">
+        <div class="tier-label">⭐⭐⭐⭐</div>
+        <div class="drop-zone movie-container" data-tier="4"></div>
+      </div>
+      <div class="tier-row" data-tier="3">
+        <div class="tier-label">⭐⭐⭐</div>
+        <div class="drop-zone movie-container" data-tier="3"></div>
+      </div>
+      <div class="tier-row" data-tier="2">
+        <div class="tier-label">⭐⭐</div>
+        <div class="drop-zone movie-container" data-tier="2"></div>
+      </div>
+      <div class="tier-row" data-tier="1">
+        <div class="tier-label">⭐</div>
+        <div class="drop-zone movie-container" data-tier="1"></div>
+      </div>
+    </section>
+  </main>
+
+  <div id="modalBackdrop" class="modal-backdrop">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
+      <h2 id="modalTitle">영화 코멘트</h2>
+      <p>이 영화에 대한 나만의 생각을 적어 보세요.</p>
+      <textarea id="commentInput" placeholder="코멘트를 입력하세요."></textarea>
+      <div class="modal-actions">
+        <button id="closeModalBtn" class="btn btn-close" type="button">닫기</button>
+        <button id="saveCommentBtn" class="btn btn-save" type="button">저장</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const MOVIES = [
+      "쇼생크 탈출",
+      "스파이더맨: 뉴 유니버스",
+      "트루먼 쇼",
+      "기생충",
+      "시카고",
+      "소원",
+      "인턴",
+      "파묘",
+      "토이 스토리 5",
+      "타짜"
+    ];
+
+    const STORAGE_KEY = "movieTierListState_v1";
+
+    const waitingZone = document.getElementById("waitingZone");
+    const dropZones = document.querySelectorAll(".drop-zone");
+    const modalBackdrop = document.getElementById("modalBackdrop");
+    const modalTitle = document.getElementById("modalTitle");
+    const commentInput = document.getElementById("commentInput");
+    const closeModalBtn = document.getElementById("closeModalBtn");
+    const saveCommentBtn = document.getElementById("saveCommentBtn");
+
+    let currentMovie = null;
+    let dragStartTime = 0;
+
+    function createInitialState() {
+      const placements = {};
+      const comments = {};
+
+      MOVIES.forEach((movie) => {
+        placements[movie] = null;
+        comments[movie] = "";
+      });
+
+      return { placements, comments };
+    }
+
+    function loadState() {
+      const saved = localStorage.getItem(STORAGE_KEY);
+
+      if (!saved) {
+        return createInitialState();
+      }
+
+      try {
+        const parsed = JSON.parse(saved);
+        const initial = createInitialState();
+
+        MOVIES.forEach((movie) => {
+          if (["1", "2", "3", "4", "5"].includes(String(parsed.placements?.[movie]))) {
+            initial.placements[movie] = String(parsed.placements[movie]);
+          }
+
+          if (typeof parsed.comments?.[movie] === "string") {
+            initial.comments[movie] = parsed.comments[movie];
+          }
+        });
+
+        return initial;
+      } catch (error) {
+        console.warn("저장 데이터를 불러오지 못했습니다. 초기 상태로 시작합니다.", error);
+        return createInitialState();
+      }
+    }
+
+    let state = loadState();
+
+    function saveState() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    }
+
+    function makeMovieCard(movie) {
+      const card = document.createElement("button");
+      card.type = "button";
+      card.className = "movie-card";
+      card.textContent = movie;
+      card.draggable = true;
+      card.dataset.movie = movie;
+      card.title = "클릭하면 코멘트를 작성할 수 있습니다.";
+
+      if (state.comments[movie]?.trim()) {
+        card.classList.add("has-comment");
+      }
+
+      card.addEventListener("dragstart", (event) => {
+        dragStartTime = Date.now();
+        event.dataTransfer.setData("text/plain", movie);
+        event.dataTransfer.effectAllowed = "move";
+      });
+
+      card.addEventListener("click", () => {
+        // 드래그 직후에 실수로 클릭 팝업이 뜨는 것을 줄이기 위한 처리
+        if (Date.now() - dragStartTime < 200) return;
+        openCommentModal(movie);
+      });
+
+      return card;
+    }
+
+    function addEmptyText(container, text) {
+      const empty = document.createElement("div");
+      empty.className = "empty-text";
+      empty.textContent = text;
+      container.appendChild(empty);
+    }
+
+    function render() {
+      waitingZone.innerHTML = "";
+      dropZones.forEach((zone) => {
+        zone.innerHTML = "";
+      });
+
+      MOVIES.forEach((movie) => {
+        const tier = state.placements[movie];
+        const card = makeMovieCard(movie);
+
+        if (tier === null) {
+          waitingZone.appendChild(card);
+        } else {
+          const zone = document.querySelector(`.drop-zone[data-tier="${tier}"]`);
+          if (zone) zone.appendChild(card);
+        }
+      });
+
+      if (!waitingZone.children.length) {
+        addEmptyText(waitingZone, "대기 중인 영화가 없습니다.");
+      }
+
+      dropZones.forEach((zone) => {
+        if (!zone.children.length) {
+          addEmptyText(zone, "여기로 영화를 드래그하세요.");
+        }
+      });
+    }
+
+    dropZones.forEach((zone) => {
+      zone.addEventListener("dragover", (event) => {
+        event.preventDefault();
+        zone.classList.add("drag-over");
+        event.dataTransfer.dropEffect = "move";
+      });
+
+      zone.addEventListener("dragleave", () => {
+        zone.classList.remove("drag-over");
+      });
+
+      zone.addEventListener("drop", (event) => {
+        event.preventDefault();
+        zone.classList.remove("drag-over");
+
+        const movie = event.dataTransfer.getData("text/plain");
+        const targetTier = zone.dataset.tier;
+
+        if (!MOVIES.includes(movie)) return;
+
+        // 한 영화는 한 곳에만 존재하도록 배치 정보만 갱신한 뒤 전체 화면을 다시 그립니다.
+        state.placements[movie] = targetTier;
+        saveState();
+        render();
+      });
+    });
+
+    function openCommentModal(movie) {
+      currentMovie = movie;
+      modalTitle.textContent = `${movie} 코멘트`;
+      commentInput.value = state.comments[movie] || "";
+      modalBackdrop.classList.add("show");
+      commentInput.focus();
+    }
+
+    function closeCommentModal() {
+      modalBackdrop.classList.remove("show");
+      currentMovie = null;
+    }
+
+    saveCommentBtn.addEventListener("click", () => {
+      if (!currentMovie) return;
+
+      state.comments[currentMovie] = commentInput.value;
+      saveState();
+      render();
+      closeCommentModal();
+    });
+
+    closeModalBtn.addEventListener("click", closeCommentModal);
+
+    modalBackdrop.addEventListener("click", (event) => {
+      if (event.target === modalBackdrop) {
+        closeCommentModal();
+      }
+    });
+
+    document.addEventListener("keydown", (event) => {
+      if (event.key === "Escape" && modalBackdrop.classList.contains("show")) {
+        closeCommentModal();
+      }
+    });
+
+    render();
+  </script>
+</body>
+</html>

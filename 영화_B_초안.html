@@ -1,0 +1,296 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>🎬 나의 영화 티어리스트</title>
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+    background: #1e1f26;
+    color: #f0f0f0;
+    margin: 0;
+    padding: 24px;
+  }
+  h1 { text-align: center; margin-bottom: 8px; }
+  .subtitle { text-align: center; color: #9aa0b5; margin-bottom: 24px; font-size: 14px; }
+
+  /* 티어 행 */
+  .tier-row {
+    display: flex;
+    align-items: stretch;
+    margin-bottom: 10px;
+    border-radius: 8px;
+    overflow: hidden;
+    background: #2a2c37;
+  }
+  .tier-label {
+    width: 140px;
+    flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 20px;
+    font-weight: bold;
+    padding: 12px;
+    color: #ffd166;
+  }
+  .tier-5 .tier-label { background: #4b2e2e; }
+  .tier-4 .tier-label { background: #4b3f2e; }
+  .tier-3 .tier-label { background: #2e4b36; }
+  .tier-2 .tier-label { background: #2e3f4b; }
+  .tier-1 .tier-label { background: #3a2e4b; }
+
+  .drop-zone {
+    flex: 1;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 12px;
+    min-height: 64px;
+    align-content: flex-start;
+  }
+  .drop-zone.drag-over {
+    outline: 2px dashed #ffd166;
+    outline-offset: -4px;
+    background: rgba(255,209,102,0.08);
+  }
+
+  /* 대기 구역 */
+  .waiting-area {
+    margin-top: 24px;
+    background: #2a2c37;
+    border-radius: 8px;
+    padding: 12px;
+  }
+  .waiting-title {
+    font-weight: bold;
+    margin-bottom: 10px;
+    color: #9aa0b5;
+  }
+  .waiting-zone {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    min-height: 64px;
+  }
+
+  /* 영화 카드 */
+  .movie-card {
+    background: #3b82f6;
+    color: #fff;
+    padding: 10px 14px;
+    border-radius: 6px;
+    cursor: grab;
+    user-select: none;
+    font-size: 14px;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.3);
+    transition: transform 0.1s;
+    position: relative;
+  }
+  .movie-card:hover { transform: translateY(-2px); background: #2563eb; }
+  .movie-card.dragging { opacity: 0.4; }
+  .movie-card.has-comment::after {
+    content: "💬";
+    margin-left: 6px;
+    font-size: 12px;
+  }
+
+  /* 팝업 */
+  .modal-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.6);
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+  }
+  .modal-overlay.show { display: flex; }
+  .modal {
+    background: #2a2c37;
+    border-radius: 10px;
+    padding: 24px;
+    width: 90%;
+    max-width: 420px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+  }
+  .modal h2 { margin-top: 0; }
+  .modal textarea {
+    width: 100%;
+    min-height: 120px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1e1f26;
+    color: #f0f0f0;
+    padding: 10px;
+    font-size: 14px;
+    resize: vertical;
+  }
+  .modal-buttons {
+    margin-top: 16px;
+    text-align: right;
+  }
+  .modal-buttons button {
+    padding: 8px 18px;
+    border: none;
+    border-radius: 6px;
+    font-size: 14px;
+    cursor: pointer;
+    margin-left: 8px;
+  }
+  .btn-save { background: #22c55e; color: #fff; }
+  .btn-cancel { background: #555; color: #fff; }
+</style>
+</head>
+<body>
+
+<h1>🎬 나의 영화 티어리스트</h1>
+<p class="subtitle">영화 카드를 드래그해서 원하는 별점 티어에 넣어보세요. 카드를 클릭하면 코멘트를 쓸 수 있어요.</p>
+
+<!-- 티어 영역 -->
+<div id="tiers">
+  <div class="tier-row tier-5"><div class="tier-label">⭐⭐⭐⭐⭐</div><div class="drop-zone" data-tier="5"></div></div>
+  <div class="tier-row tier-4"><div class="tier-label">⭐⭐⭐⭐</div><div class="drop-zone" data-tier="4"></div></div>
+  <div class="tier-row tier-3"><div class="tier-label">⭐⭐⭐</div><div class="drop-zone" data-tier="3"></div></div>
+  <div class="tier-row tier-2"><div class="tier-label">⭐⭐</div><div class="drop-zone" data-tier="2"></div></div>
+  <div class="tier-row tier-1"><div class="tier-label">⭐</div><div class="drop-zone" data-tier="1"></div></div>
+</div>
+
+<!-- 대기 구역 -->
+<div class="waiting-area">
+  <div class="waiting-title">📥 대기 구역</div>
+  <div class="waiting-zone drop-zone" data-tier="waiting"></div>
+</div>
+
+<!-- 코멘트 팝업 -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <h2 id="modalTitle">영화 제목</h2>
+    <textarea id="commentInput" placeholder="이 영화에 대한 코멘트를 남겨보세요..."></textarea>
+    <div class="modal-buttons">
+      <button class="btn-cancel" id="btnCancel">취소</button>
+      <button class="btn-save" id="btnSave">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+  // ---------- 데이터 ----------
+  const MOVIES = [
+    "쇼생크 탈출", "스파이더맨: 뉴 유니버스", "트루먼 쇼", "기생충", "시카고",
+    "소원", "인턴", "파묘", "토이 스토리 5", "타짜"
+  ];
+  const STORAGE_KEY = "movieTierList_v1";
+
+  // 저장 구조: { "영화제목": { tier: "waiting"|"1~5", comment: "..." }, ... }
+  let state = loadState();
+
+  function loadState() {
+    const saved = localStorage.getItem(STORAGE_KEY);
+    if (saved) {
+      try { return JSON.parse(saved); } catch(e) {}
+    }
+    // 초기 상태: 모두 대기 구역, 코멘트 없음
+    const init = {};
+    MOVIES.forEach(m => { init[m] = { tier: "waiting", comment: "" }; });
+    return init;
+  }
+
+  function saveState() {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+  }
+
+  // ---------- 렌더링 ----------
+  function render() {
+    // 모든 드롭존 비우기
+    document.querySelectorAll(".drop-zone").forEach(z => z.innerHTML = "");
+
+    MOVIES.forEach(title => {
+      const info = state[title];
+      const card = createCard(title, info);
+      const zone = document.querySelector(`.drop-zone[data-tier="${info.tier}"]`);
+      (zone || document.querySelector('.drop-zone[data-tier="waiting"]')).appendChild(card);
+    });
+  }
+
+  function createCard(title, info) {
+    const card = document.createElement("div");
+    card.className = "movie-card" + (info.comment ? " has-comment" : "");
+    card.textContent = title;
+    card.draggable = true;
+    card.dataset.title = title;
+
+    // 드래그 시작/끝
+    card.addEventListener("dragstart", e => {
+      e.dataTransfer.setData("text/plain", title);
+      card.classList.add("dragging");
+    });
+    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+
+    // 클릭 시 코멘트 팝업
+    card.addEventListener("click", () => openModal(title));
+
+    return card;
+  }
+
+  // ---------- 드롭 처리 ----------
+  document.querySelectorAll(".drop-zone").forEach(zone => {
+    zone.addEventListener("dragover", e => {
+      e.preventDefault();
+      zone.classList.add("drag-over");
+    });
+    zone.addEventListener("dragleave", () => zone.classList.remove("drag-over"));
+    zone.addEventListener("drop", e => {
+      e.preventDefault();
+      zone.classList.remove("drag-over");
+      const title = e.dataTransfer.getData("text/plain");
+      const targetTier = zone.dataset.tier;
+
+      // 규칙: 대기 구역으로 되돌리기는 불가
+      if (targetTier === "waiting") return;
+
+      state[title].tier = targetTier;
+      saveState();
+      render();
+    });
+  });
+
+  // ---------- 코멘트 팝업 ----------
+  const overlay = document.getElementById("modalOverlay");
+  const modalTitle = document.getElementById("modalTitle");
+  const commentInput = document.getElementById("commentInput");
+  let currentTitle = null;
+
+  function openModal(title) {
+    currentTitle = title;
+    modalTitle.textContent = title;
+    commentInput.value = state[title].comment || "";
+    overlay.classList.add("show");
+    commentInput.focus();
+  }
+
+  function closeModal() {
+    overlay.classList.remove("show");
+    currentTitle = null;
+  }
+
+  document.getElementById("btnSave").addEventListener("click", () => {
+    if (currentTitle) {
+      state[currentTitle].comment = commentInput.value.trim();
+      saveState();
+      render();
+    }
+    closeModal();
+  });
+
+  document.getElementById("btnCancel").addEventListener("click", closeModal);
+  overlay.addEventListener("click", e => { if (e.target === overlay) closeModal(); });
+
+  // ---------- 시작 ----------
+  render();
+</script>
+
+</body>
+</html>
